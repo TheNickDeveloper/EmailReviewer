@@ -1,0 +1,9 @@
+2020-06-16 18:43:26.876 +08:00 [INF] Start email reviewing.
+2020-06-16 18:43:33.405 +08:00 [INF] Move mail:Incident P5 INC1836810 has been assigned to group OPS-APP-LAS-ANZ to IncidentNormal Folder.
+2020-06-16 18:43:35.109 +08:00 [INF] Store incident number:INC1836810 to DB.
+2020-06-16 18:43:38.153 +08:00 [INF] Move mail:Incident P4 INC1850882 has been assigned to group OPS-APP-LAS-ANZ to IncidentCritial Folder.
+2020-06-16 18:43:38.275 +08:00 [INF] Classify as Critial Mail, execute auto reply to nick.tsai@effem.com.
+2020-06-16 18:43:38.315 +08:00 [INF] Store incident number:INC1850882 to DB.
+2020-06-16 18:43:40.888 +08:00 [INF] Move mail:Incident INC1850882 Commented to IncidentCritial Folder.
+2020-06-16 18:43:42.813 +08:00 [INF] Move mail:Incident INC1836810 Commented to IncidentNormal Folder.
+2020-06-16 18:43:42.813 +08:00 [INF] Finish scripting.
