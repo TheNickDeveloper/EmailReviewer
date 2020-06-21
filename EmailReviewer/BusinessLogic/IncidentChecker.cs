@@ -3,6 +3,7 @@ using EmailReviewer.DbContexts.Models;
 using EmailReviewer.Exceptions;
 using Microsoft.Office.Interop.Outlook;
 using Serilog;
+using System.Configuration;
 using System.Linq;
 
 namespace EmailReviewer.BusinessLogic
@@ -13,30 +14,39 @@ namespace EmailReviewer.BusinessLogic
         private readonly IncidentTicketContext _incidentTicketContext;
         private readonly MAPIFolder _inboxFolder;
 
-        private MAPIFolder _itNotificationFolder;
+        private MAPIFolder _targetSourceFolder;
         private MAPIFolder _incidentsCriticalFolder;
         private MAPIFolder _incidentsNormalFolder;
         private MAPIFolder _othersFolder;
 
-        public MAPIFolder ItNotificationFolder
+        public MAPIFolder SourceTargetFolder
         {
             get
             {
-                if (_itNotificationFolder != null)
+                var folderName = ConfigurationManager.AppSettings["TargetSourceFolder"].ToString();
+
+                if (_targetSourceFolder != null)
                 {
-                    return _itNotificationFolder;
+                    return _targetSourceFolder;
                 }
                 else
                 {
                     try
                     {
-                        _itNotificationFolder = _inboxFolder.Folders["ItNotification"];
+                        if (folderName == "Inbox")
+                        {
+                            _targetSourceFolder = _inboxFolder;
+                        }
+                        else
+                        {
+                            _targetSourceFolder = _inboxFolder.Folders[folderName];
+                        }
                     }
                     catch (System.Exception)
                     {
-                        throw new EmailFolderNoFoundException("Cannot find ItNotification folder.");
+                        throw new EmailFolderNoFoundException($"Cannot find {folderName} folder.");
                     }
-                    return _itNotificationFolder;
+                    return _targetSourceFolder;
                 }
             }
         }
@@ -51,7 +61,7 @@ namespace EmailReviewer.BusinessLogic
                 }
                 else
                 {
-                    foreach (MAPIFolder folder in _itNotificationFolder.Folders)
+                    foreach (MAPIFolder folder in _targetSourceFolder.Folders)
                     {
                         if (folder.Name == "Incidents_Critical")
                         {
@@ -62,8 +72,8 @@ namespace EmailReviewer.BusinessLogic
 
                     if (_incidentsCriticalFolder == null)
                     {
-                        _itNotificationFolder.Folders.Add("Incidents_Critical");
-                        _incidentsCriticalFolder = _itNotificationFolder.Folders["Incidents_Critical"];
+                        _targetSourceFolder.Folders.Add("Incidents_Critical");
+                        _incidentsCriticalFolder = _targetSourceFolder.Folders["Incidents_Critical"];
                     }
 
                     return _incidentsCriticalFolder;
@@ -81,7 +91,7 @@ namespace EmailReviewer.BusinessLogic
                 }
                 else
                 {
-                    foreach (MAPIFolder folder in _itNotificationFolder.Folders)
+                    foreach (MAPIFolder folder in _targetSourceFolder.Folders)
                     {
                         if (folder.Name == "Incidents_Normal")
                         {
@@ -92,11 +102,11 @@ namespace EmailReviewer.BusinessLogic
 
                     if (_incidentsNormalFolder == null)
                     {
-                        _itNotificationFolder.Folders.Add("Incidents_Normal");
-                        _incidentsNormalFolder = _itNotificationFolder.Folders["Incidents_Normal"];
+                        _targetSourceFolder.Folders.Add("Incidents_Normal");
+                        _incidentsNormalFolder = _targetSourceFolder.Folders["Incidents_Normal"];
                     }
 
-                    return _itNotificationFolder;
+                    return _targetSourceFolder;
                 }
             }
         }
@@ -111,7 +121,7 @@ namespace EmailReviewer.BusinessLogic
                 }
                 else
                 {
-                    foreach (MAPIFolder folder in _itNotificationFolder.Folders)
+                    foreach (MAPIFolder folder in _targetSourceFolder.Folders)
                     {
                         if (folder.Name == "Others")
                         {
@@ -122,8 +132,8 @@ namespace EmailReviewer.BusinessLogic
 
                     if (_othersFolder == null)
                     {
-                        _itNotificationFolder.Folders.Add("Others");
-                        _othersFolder = _itNotificationFolder.Folders["Others"];
+                        _targetSourceFolder.Folders.Add("Others");
+                        _othersFolder = _targetSourceFolder.Folders["Others"];
                     }
 
                     return _othersFolder;
@@ -140,7 +150,7 @@ namespace EmailReviewer.BusinessLogic
 
         public void ReviewIncidentFromEmailFolder()
         {
-            Items inboxMails = ItNotificationFolder.Items;
+            Items inboxMails = SourceTargetFolder.Items;
 
             do
             {
@@ -151,7 +161,7 @@ namespace EmailReviewer.BusinessLogic
                 }
 
                 // rearrange mail item ascending by date
-                inboxMails = ItNotificationFolder.Items;
+                inboxMails = SourceTargetFolder.Items;
                 inboxMails.Sort("[Subject]", true);
 
                 var currentMail = inboxMails[1] as MailItem;
