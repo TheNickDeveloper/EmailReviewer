@@ -51,14 +51,21 @@ namespace EmailReviewer.BusinessLogic
                 }
                 else
                 {
-                    try
+                    foreach (MAPIFolder folder in _itNotificationFolder.Folders)
                     {
+                        if (folder.Name == "Incidents_Critical")
+                        {
+                            _incidentsCriticalFolder = folder;
+                            break;
+                        }
+                    }
+
+                    if (_incidentsCriticalFolder == null)
+                    {
+                        _itNotificationFolder.Folders.Add("Incidents_Critical");
                         _incidentsCriticalFolder = _itNotificationFolder.Folders["Incidents_Critical"];
                     }
-                    catch (System.Exception)
-                    {
-                        throw new EmailFolderNoFoundException("Cannot find Incidents_Critical folder.");
-                    }
+
                     return _incidentsCriticalFolder;
                 }
             }
@@ -74,15 +81,22 @@ namespace EmailReviewer.BusinessLogic
                 }
                 else
                 {
-                    try
+                    foreach (MAPIFolder folder in _itNotificationFolder.Folders)
                     {
+                        if (folder.Name == "Incidents_Normal")
+                        {
+                            _incidentsNormalFolder = folder;
+                            break;
+                        }
+                    }
+
+                    if (_incidentsNormalFolder == null)
+                    {
+                        _itNotificationFolder.Folders.Add("Incidents_Normal");
                         _incidentsNormalFolder = _itNotificationFolder.Folders["Incidents_Normal"];
                     }
-                    catch (System.Exception)
-                    {
-                        throw new EmailFolderNoFoundException("Cannot find Incidents_Normal folder.");
-                    }
-                    return _incidentsNormalFolder;
+
+                    return _itNotificationFolder;
                 }
             }
         }
@@ -97,14 +111,21 @@ namespace EmailReviewer.BusinessLogic
                 }
                 else
                 {
-                    try
+                    foreach (MAPIFolder folder in _itNotificationFolder.Folders)
                     {
+                        if (folder.Name == "Others")
+                        {
+                            _othersFolder = folder;
+                            break;
+                        }
+                    }
+
+                    if (_othersFolder == null)
+                    {
+                        _itNotificationFolder.Folders.Add("Others");
                         _othersFolder = _itNotificationFolder.Folders["Others"];
                     }
-                    catch (System.Exception)
-                    {
-                        throw new EmailFolderNoFoundException("Cannot find Others folder.");
-                    }
+
                     return _othersFolder;
                 }
             }
