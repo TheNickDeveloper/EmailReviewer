@@ -13,11 +13,19 @@ namespace EmailReviewer.BusinessLogic
         private readonly Application _outlookApp;
         private readonly IncidentTicketContext _incidentTicketContext;
         private readonly MAPIFolder _inboxFolder;
-
         private MAPIFolder _targetSourceFolder;
         private MAPIFolder _incidentsCriticalFolder;
         private MAPIFolder _incidentsNormalFolder;
         private MAPIFolder _othersFolder;
+        private MAPIFolder _meetingFodler;
+        private MAPIFolder _appointmentFolder;
+
+        public IncidentChecker()
+        {
+            _outlookApp = new Application();
+            _inboxFolder = _outlookApp.GetNamespace("MAPI").GetDefaultFolder(OlDefaultFolders.olFolderInbox);
+            _incidentTicketContext = new IncidentTicketContext();
+        }
 
         public MAPIFolder SourceTargetFolder
         {
@@ -141,17 +149,70 @@ namespace EmailReviewer.BusinessLogic
             }
         }
 
-        public IncidentChecker()
+        public MAPIFolder MeetingFolder
         {
-            _outlookApp = new Application();
-            _incidentTicketContext = new IncidentTicketContext();
-            _inboxFolder = _outlookApp.GetNamespace("MAPI").GetDefaultFolder(OlDefaultFolders.olFolderInbox);
+            get
+            {
+                if (_meetingFodler != null)
+                {
+                    return _meetingFodler;
+                }
+                else
+                {
+                    foreach (MAPIFolder folder in _targetSourceFolder.Folders)
+                    {
+                        if (folder.Name == "Meeting")
+                        {
+                            _meetingFodler = folder;
+                            break;
+                        }
+                    }
+
+                    if (_meetingFodler == null)
+                    {
+                        _targetSourceFolder.Folders.Add("Meeting");
+                        _meetingFodler = _targetSourceFolder.Folders["Meeting"];
+                    }
+
+                    return _meetingFodler;
+                }
+            }
+        }
+
+        public MAPIFolder AppointmentFolder
+        {
+            get
+            {
+                if (_appointmentFolder != null)
+                {
+                    return _appointmentFolder;
+                }
+                else
+                {
+                    foreach (MAPIFolder folder in _targetSourceFolder.Folders)
+                    {
+                        if (folder.Name == "Appointment")
+                        {
+                            _appointmentFolder = folder;
+                            break;
+                        }
+                    }
+
+                    if (_appointmentFolder == null)
+                    {
+                        _targetSourceFolder.Folders.Add("Appointment");
+                        _appointmentFolder = _targetSourceFolder.Folders["Appointment"];
+                    }
+
+                    return _appointmentFolder;
+                }
+            }
         }
 
         public void ReviewIncidentFromEmailFolder()
         {
             Items inboxMails = SourceTargetFolder.Items;
-
+            
             do
             {
                 if (inboxMails.Count == 0)
@@ -160,41 +221,66 @@ namespace EmailReviewer.BusinessLogic
                     return;
                 }
 
-                // rearrange mail item ascending by date
+                // Have to assigin the value again, ow it wont update automatically.
                 inboxMails = SourceTargetFolder.Items;
                 inboxMails.Sort("[Subject]", true);
 
-                var currentMail = inboxMails[1] as MailItem;
-                var subjectCategory = currentMail.Subject.Substring(0, 8);
-                if (subjectCategory == "Incident")
-                {
-                    var priority = currentMail.Subject.Substring(9, 2);
-                    var incidentCateogty = GetIncidentCategory(priority);
-                    string incidentNumber;
+                // mail item
+                if (inboxMails[1] is MailItem currentMail) MailItemAction(currentMail);
 
-                    switch (incidentCateogty)
-                    {
-                        case "IncidentWithPriority":
-                            MoveToFolder(priority, currentMail);
-                            AutoReply(priority, currentMail);
-                            incidentNumber = currentMail.Subject.Substring(12, 10);
-                            RecordIncidentNumberIntoSqliteDb(incidentNumber, priority);
-                            break;
+                // meeting item
+                if (inboxMails[1] is MeetingItem meetingMail) MeetingItemAction(meetingMail);
 
-                        case "CommandOrIncidentWithoutPriority":
-                            incidentNumber = currentMail.Subject.Substring(9, 10);
-                            priority = GetPriorityFromDb(incidentNumber);
-                            MoveToFolder(priority, currentMail);
-                            break;
-                    }
-                }
-                else
-                {
-                    Log.Information($"Not incident notice, move mail:{currentMail.Subject} to Otherd folder.");
-                    currentMail.Move(OthersFolder);
-                }
+                // appointment item
+                if (inboxMails[1] is AppointmentItem appointmentMail) AppointmentItemAction(appointmentMail);
 
             } while (inboxMails.Count != 0);
+        }
+
+        private void MailItemAction(MailItem currentMail)
+        {
+            var subjectCategory = currentMail.Subject.Substring(0, 8);
+            if (subjectCategory == "Incident")
+            {
+                var priority = currentMail.Subject.Substring(9, 2);
+                var incidentCateogty = GetIncidentCategory(priority);
+                string incidentNumber;
+
+                switch (incidentCateogty)
+                {
+                    case "IncidentWithPriority":
+                        MoveToFolder(priority, currentMail);
+                        AutoReply(priority, currentMail);
+                        incidentNumber = currentMail.Subject.Substring(12, 10);
+                        RecordIncidentNumberIntoSqliteDb(incidentNumber, priority);
+                        break;
+
+                    case "CommandOrIncidentWithoutPriority":
+                        incidentNumber = currentMail.Subject.Substring(9, 10);
+                        priority = GetPriorityFromDb(incidentNumber);
+                        MoveToFolder(priority, currentMail);
+                        break;
+                }
+            }
+            else
+            {
+                Log.Information($"Not incident notice, move mail:{currentMail.Subject} to Otherd folder.");
+                currentMail.Move(OthersFolder);
+            }
+        }
+
+        private void MeetingItemAction(MeetingItem meetingMail)
+        {
+            meetingMail.Move(MeetingFolder);
+            var folderName = "Meeting Folder";
+            Log.Information($"Move meeting:{meetingMail.Subject} to {folderName}.");
+        }
+
+        private void AppointmentItemAction(AppointmentItem appointmentMail)
+        {
+            appointmentMail.Move(AppointmentFolder);
+            var folderName = "Appointment Folder";
+            Log.Information($"Move appointment:{appointmentMail.Subject} to {folderName}.");
         }
 
         private string GetIncidentCategory(string priority)
@@ -233,9 +319,11 @@ namespace EmailReviewer.BusinessLogic
             if (priority == "P4")
             {
                 var newMail = currentMail.Forward();
+                newMail.Subject = "Testing";
                 newMail.To = "nick.tsai@effem.com";
                 string contents = "hi, this is forward test <br/> <br/>";
                 newMail.HTMLBody = contents + newMail.HTMLBody;
+
                 newMail.Save();
                 Log.Information($"Classify as Critial Mail, execute auto reply to {newMail.To}.");
             }
@@ -260,13 +348,7 @@ namespace EmailReviewer.BusinessLogic
         {
             var tickets = _incidentTicketContext.IncidentTickets.ToList();
             var target = tickets.Find(x => x.TicketId == ticketId);
-
-            if (target != null)
-            {
-                return target.Priority;
-            }
-
-            return "NoDefined";
+            return target != null ? target.Priority : "NoDefined";
         }
 
     }
