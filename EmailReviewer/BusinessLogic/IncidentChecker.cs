@@ -114,7 +114,7 @@ namespace EmailReviewer.BusinessLogic
                         _incidentsNormalFolder = _targetSourceFolder.Folders["Incidents_Normal"];
                     }
 
-                    return _targetSourceFolder;
+                    return _incidentsNormalFolder;
                 }
             }
         }
